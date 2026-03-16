@@ -1,0 +1,16 @@
+services:
+  ffmpeg-ssh:
+    build: .
+    container_name: ffmpeg-ssh
+    restart: unless-stopped
+    ports:
+      - "2244:22"        # Map host port 2244 → container SSH port 22
+    environment:
+      - SSH_PASSWORD=changeme           # Override default password
+      # - SSH_AUTHORIZED_KEYS=ssh-ed25519 AAAA...  # Paste your pubkey here for key auth
+    volumes:
+      # Bind-mount Unraid shares directly — no copy, zero overhead
+      # On Unraid, these paths would be e.g. /mnt/user/Media
+      - /mnt/user/Media:/mnt/media:rw
+      - /mnt/user/Output:/mnt/output:rw
+      - /mnt/user/Data:/mnt/data:ro

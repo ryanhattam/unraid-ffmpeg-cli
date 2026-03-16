@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>ffmpeg-ssh</Name>
+  <Repository>your-dockerhub-username/ffmpeg-ssh</Repository>
+  <Registry>https://hub.docker.com/</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project/>
+  <Overview>Persistent ffmpeg container with SSH access. Shell in via SSH and run ffmpeg commands against your Unraid shares directly — no encoding overhead from container filesystem layers.</Overview>
+  <Category>MediaApp:Video</Category>
+  <WebUI/>
+  <TemplateURL/>
+  <Icon>https://ffmpeg.org/favicon.png</Icon>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+
+  <!-- SSH Port -->
+  <Config Name="SSH Port" Target="22" Default="2244" Mode="tcp" Description="Port to expose SSH on the host" Type="Port" Display="always" Required="true" Mask="false">2244</Config>
+
+  <!-- Environment Variables -->
+  <Config Name="SSH Password" Target="SSH_PASSWORD" Default="changeme" Mode="" Description="Password for the ffmpeg SSH user. Change this!" Type="Variable" Display="always" Required="true" Mask="true">changeme</Config>
+  <Config Name="SSH Authorized Keys" Target="SSH_AUTHORIZED_KEYS" Default="" Mode="" Description="Optional: paste your SSH public key here to enable key-based auth (recommended)" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+
+  <!-- Volume Mounts — map your Unraid share paths here -->
+  <Config Name="Media Share" Target="/mnt/media" Default="/mnt/user/Media" Mode="rw" Description="Path to your Unraid media share" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/Media</Config>
+  <Config Name="Output Share" Target="/mnt/output" Default="/mnt/user/Output" Mode="rw" Description="Path to write encoded output" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/Output</Config>
+  <Config Name="Data Share" Target="/mnt/data" Default="/mnt/user/Data" Mode="rw" Description="Additional share mount" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/Data</Config>
+
+</Container>

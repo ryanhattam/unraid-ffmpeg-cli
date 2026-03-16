@@ -1,0 +1,56 @@
+FROM debian:bookworm-slim
+
+# Install ffmpeg (includes ffprobe), openssh, vim, mkvtoolnix, mediainfo, and fetch utilities
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    openssh-server \
+    bash \
+    ca-certificates \
+    curl \
+    vim \
+    mkvtoolnix \
+    mediainfo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install dovi_tool — fetch latest musl-linked binary from GitHub releases
+# musl build has no libc dependencies so it works on any Linux distro/container
+RUN DOVI_VERSION=$(curl -fsSL https://api.github.com/repos/quietvoid/dovi_tool/releases/latest \
+        | grep '"tag_name"' | sed 's/.*"tag_name": "\(.*\)".*/\1/') && \
+    curl -fsSL "https://github.com/quietvoid/dovi_tool/releases/download/${DOVI_VERSION}/dovi_tool-${DOVI_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
+        -o /tmp/dovi_tool.tar.gz && \
+    tar -xzf /tmp/dovi_tool.tar.gz -C /usr/local/bin dovi_tool && \
+    chmod +x /usr/local/bin/dovi_tool && \
+    rm /tmp/dovi_tool.tar.gz
+
+# Create SSH run directory
+RUN mkdir -p /var/run/sshd
+
+# Create a dedicated user for SSH access
+RUN useradd -m -s /bin/bash ffmpeg && \
+    echo "ffmpeg:changeme" | chpasswd
+
+# SSH hardening - disable root login, allow only our user
+RUN sed -i \
+    -e 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' \
+    -e 's/#PasswordAuthentication yes/PasswordAuthentication yes/' \
+    -e 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' \
+    /etc/ssh/sshd_config && \
+    echo "AllowUsers ffmpeg" >> /etc/ssh/sshd_config && \
+    echo "X11Forwarding no" >> /etc/ssh/sshd_config && \
+    echo "PrintMotd no" >> /etc/ssh/sshd_config
+
+# Create mount point directories (owned by ffmpeg user for direct access)
+RUN mkdir -p /mnt/media /mnt/output /mnt/data && \
+    chown ffmpeg:ffmpeg /mnt/media /mnt/output /mnt/data
+
+# Generate host keys at build time (stable across restarts)
+RUN ssh-keygen -A
+
+# Copy entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# SSH port
+EXPOSE 22
+
+ENTRYPOINT ["/entrypoint.sh"]
