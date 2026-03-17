@@ -47,8 +47,8 @@ RUN sed -i \
     echo "PrintMotd no" >> /etc/ssh/sshd_config
 
 # Create mount point directories (owned by ffmpeg user for direct access)
-RUN mkdir -p /mnt/media /mnt/output /mnt/data && \
-    chown ffmpeg:ffmpeg /mnt/media /mnt/output /mnt/data
+RUN mkdir -p /mnt/media && \
+    chown ffmpeg:ffmpeg /mnt/media
 
 # Generate host keys at build time (stable across restarts)
 RUN ssh-keygen -A

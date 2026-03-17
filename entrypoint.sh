@@ -20,7 +20,7 @@ ssh-keygen -A
 
 echo "==> ffmpeg-ssh container started"
 echo "==> SSH listening on port 22"
-echo "==> Mount points: /mnt/media  /mnt/output  /mnt/data"
+echo "==> Mount point: /mnt/media"
 
 # Run sshd in foreground — this IS the main process, keeping the container alive
 exec /usr/sbin/sshd -D -e
