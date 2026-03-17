@@ -1,78 +1,12 @@
-# ─── Stage 1: Compile ffmpeg ──────────────────────────────────────────────────
-FROM debian:bookworm AS ffmpeg-builder
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    pkg-config \
-    nasm \
-    yasm \
-    curl \
-    xz-utils \
-    libvmaf-dev \
-    libx264-dev \
-    libx265-dev \
-    libvpx-dev \
-    libdav1d-dev \
-    libaom-dev \
-    libopus-dev \
-    libmp3lame-dev \
-    libass-dev \
-    libfreetype-dev \
-    libfontconfig1-dev \
-    libfribidi-dev \
-    libwebp-dev \
-    libvorbis-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-ARG FFMPEG_VERSION=7.1
-RUN curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" \
-        -o /tmp/ffmpeg.tar.xz && \
-    tar -xf /tmp/ffmpeg.tar.xz -C /tmp && \
-    cd /tmp/ffmpeg-${FFMPEG_VERSION} && \
-    ./configure \
-        --prefix=/usr/local \
-        --enable-gpl \
-        --enable-version3 \
-        --enable-libvmaf \
-        --enable-libx264 \
-        --enable-libx265 \
-        --enable-libvpx \
-        --enable-libdav1d \
-        --enable-libaom \
-        --enable-libopus \
-        --enable-libmp3lame \
-        --enable-libass \
-        --enable-libfreetype \
-        --enable-libfontconfig \
-        --enable-libfribidi \
-        --enable-libwebp \
-        --enable-libvorbis \
-        --disable-debug \
-        --disable-doc \
-        --disable-ffplay && \
-    make -j$(nproc) && \
-    make install && \
-    rm -rf /tmp/ffmpeg*
-
-# ─── Stage 2: Runtime image ───────────────────────────────────────────────────
 FROM debian:bookworm-slim
 
-# Codec runtime libs + SSH/tools
+# Static ffmpeg/ffprobe — fully self-contained, no runtime lib dependencies.
+# Includes VMAF, x264, x265, SVT-AV1, dav1d, libaom, VP9, opus, mp3, AAC, and more.
+COPY --from=mwader/static-ffmpeg:latest /ffmpeg /usr/local/bin/ffmpeg
+COPY --from=mwader/static-ffmpeg:latest /ffprobe /usr/local/bin/ffprobe
+
+# Install SSH, tools, and utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libvmaf3 \
-    libx264-163 \
-    libx265-199 \
-    libvpx7 \
-    libdav1d6 \
-    libaom3 \
-    libopus0 \
-    libmp3lame0 \
-    libass9 \
-    libfreetype6 \
-    libfontconfig1 \
-    libfribidi0 \
-    libwebp7 \
-    libvorbisenc2 \
     openssh-server \
     bash \
     bash-completion \
@@ -82,10 +16,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mkvtoolnix \
     mediainfo \
     && rm -rf /var/lib/apt/lists/*
-
-# Copy compiled ffmpeg/ffprobe from builder
-COPY --from=ffmpeg-builder /usr/local/bin/ffmpeg /usr/local/bin/ffmpeg
-COPY --from=ffmpeg-builder /usr/local/bin/ffprobe /usr/local/bin/ffprobe
 
 # Install dovi_tool — fetch latest musl-linked binary from GitHub releases
 # musl build has no libc dependencies so it works on any Linux distro/container
