@@ -1,18 +1,27 @@
 FROM debian:bookworm-slim
 
-# Install ffmpeg (includes ffprobe), openssh, vim, mkvtoolnix, mediainfo, and fetch utilities
+# Install runtime tools and utilities (ffmpeg installed separately below)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
     openssh-server \
     bash \
     bash-completion \
     ca-certificates \
     curl \
+    xz-utils \
     vim \
     mkvtoolnix \
     mediainfo \
-    ffprobe \
     && rm -rf /var/lib/apt/lists/*
+
+# Install ffmpeg from BtbN GPL static build — includes VMAF, x264, x265, SVT-AV1,
+# dav1d, libaom, VP8/VP9, libfdk-aac, libopus, libmp3lame, libass, libwebp, and more
+RUN curl -fsSL "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz" \
+        -o /tmp/ffmpeg.tar.xz && \
+    mkdir /tmp/ffmpeg_extract && \
+    tar -xf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg_extract --strip-components=1 && \
+    install -m 755 /tmp/ffmpeg_extract/bin/ffmpeg /usr/local/bin/ffmpeg && \
+    install -m 755 /tmp/ffmpeg_extract/bin/ffprobe /usr/local/bin/ffprobe && \
+    rm -rf /tmp/ffmpeg.tar.xz /tmp/ffmpeg_extract
 
 # Install dovi_tool — fetch latest musl-linked binary from GitHub releases
 # musl build has no libc dependencies so it works on any Linux distro/container
