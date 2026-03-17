@@ -7,21 +7,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash-completion \
     ca-certificates \
     curl \
-    xz-utils \
+    gnupg2 \
     vim \
     mkvtoolnix \
     mediainfo \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ffmpeg from BtbN GPL static build — includes VMAF, x264, x265, SVT-AV1,
-# dav1d, libaom, VP8/VP9, libfdk-aac, libopus, libmp3lame, libass, libwebp, and more
-RUN curl -fsSL "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz" \
-        -o /tmp/ffmpeg.tar.xz && \
-    mkdir /tmp/ffmpeg_extract && \
-    tar -xf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg_extract --strip-components=1 && \
-    install -m 755 /tmp/ffmpeg_extract/bin/ffmpeg /usr/local/bin/ffmpeg && \
-    install -m 755 /tmp/ffmpeg_extract/bin/ffprobe /usr/local/bin/ffprobe && \
-    rm -rf /tmp/ffmpeg.tar.xz /tmp/ffmpeg_extract
+# Install Jellyfin's ffmpeg build — Debian-native package that includes VMAF (with
+# model files), x264, x265, SVT-AV1, dav1d, VP8/VP9, libfdk-aac, libopus, libass, etc.
+RUN curl -fsSL https://repo.jellyfin.org/jellyfin_team.gpg.key \
+        | gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/jellyfin.gpg arch=amd64] https://repo.jellyfin.org/debian bookworm main" \
+        > /etc/apt/sources.list.d/jellyfin.list && \
+    apt-get update && apt-get install -y --no-install-recommends jellyfin-ffmpeg7 && \
+    ln -s /usr/lib/jellyfin-ffmpeg/ffmpeg /usr/local/bin/ffmpeg && \
+    ln -s /usr/lib/jellyfin-ffmpeg/ffprobe /usr/local/bin/ffprobe && \
+    rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/jellyfin.list /etc/apt/keyrings/jellyfin.gpg
 
 # Install dovi_tool — fetch latest musl-linked binary from GitHub releases
 # musl build has no libc dependencies so it works on any Linux distro/container
