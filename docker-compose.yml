@@ -1,6 +1,6 @@
 services:
   ffmpeg-ssh:
-    build: .
+    image: ffmpeg-ssh
     container_name: ffmpeg-ssh
     restart: unless-stopped
     ports:

@@ -5,11 +5,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     openssh-server \
     bash \
+    bash-completion \
     ca-certificates \
     curl \
     vim \
     mkvtoolnix \
     mediainfo \
+    ffprobe \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dovi_tool — fetch latest musl-linked binary from GitHub releases
@@ -18,9 +20,11 @@ RUN DOVI_VERSION=$(curl -fsSL https://api.github.com/repos/quietvoid/dovi_tool/r
         | grep '"tag_name"' | sed 's/.*"tag_name": "\(.*\)".*/\1/') && \
     curl -fsSL "https://github.com/quietvoid/dovi_tool/releases/download/${DOVI_VERSION}/dovi_tool-${DOVI_VERSION}-x86_64-unknown-linux-musl.tar.gz" \
         -o /tmp/dovi_tool.tar.gz && \
-    tar -xzf /tmp/dovi_tool.tar.gz -C /usr/local/bin dovi_tool && \
-    chmod +x /usr/local/bin/dovi_tool && \
-    rm /tmp/dovi_tool.tar.gz
+    mkdir /tmp/dovi_extract && \
+    tar -xzf /tmp/dovi_tool.tar.gz -C /tmp/dovi_extract && \
+    find /tmp/dovi_extract -name 'dovi_tool' -type f \
+        -exec install -m 755 {} /usr/local/bin/dovi_tool \; && \
+    rm -rf /tmp/dovi_tool.tar.gz /tmp/dovi_extract
 
 # Create SSH run directory
 RUN mkdir -p /var/run/sshd
