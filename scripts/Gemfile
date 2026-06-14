@@ -1,0 +1,7 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+
+ruby "~> 3.4"
+
+# All dependencies are Ruby stdlib — no external gems required

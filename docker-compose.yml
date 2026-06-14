@@ -11,4 +11,5 @@ services:
     volumes:
       # Bind-mount Unraid shares directly — no copy, zero overhead
       # On Unraid, these paths would be e.g. /mnt/user/Media
-      - /mnt/user/media:/mnt/media:rw
+      - /Volumes/media:/mnt/media:rw
+      - ./scripts:/scripts:rw

@@ -52,7 +52,7 @@ No plugins needed. From the Unraid terminal (or any SSH session into Unraid):
      --restart unless-stopped \
      -p 2244:22 \
      -e SSH_PASSWORD=yourpassword \
-     -v /mnt/user/Media:/mnt/media \
+     -v /mnt/user/media:/mnt/media \
      ffmpeg-ssh
    ```
    Adjust the `-v` paths to match your actual share names.
