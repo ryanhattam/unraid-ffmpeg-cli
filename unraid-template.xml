@@ -12,7 +12,7 @@
   <Category>MediaApp:Video</Category>
   <WebUI/>
   <TemplateURL/>
-  <Icon>https://ffmpeg.org/favicon.png</Icon>
+  <Icon>https://raw.githubusercontent.com/ryanhattam/unraid-ffmpeg-cli/main/icon.png</Icon>
   <ExtraParams>--restart=unless-stopped</ExtraParams>
   <PostArgs/>
   <CPUset/>
