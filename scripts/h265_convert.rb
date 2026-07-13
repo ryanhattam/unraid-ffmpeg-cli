@@ -7,17 +7,21 @@
 # the output suffix (so re-running is always safe).
 #
 # Usage:
-#   ruby h265_convert.rb                          # scan current directory
 #   ruby h265_convert.rb --dir /path/to/season    # scan specific directory
 #   ruby h265_convert.rb --dir /path/to/season --dry-run
 #   ruby h265_convert.rb --dir . --crf 20 --preset medium
 #
 # Options:
-#   --dir PATH         Directory to scan (default: current directory)
-#   --crf N            CRF quality value (default: 17)
+#   --dir PATH         Directory to scan (required)
+#   --crf N            CRF quality value (default: 18)
 #   --preset PRESET    x265 preset (default: slow)
 #   --suffix SUFFIX    Output filename suffix (default: _h265)
+#   --min-bpp N        Skip files below this bits-per-pixel (default: 0.05).
+#                      Low-bpp sources are already efficiently compressed and
+#                      are unlikely to shrink 10%+ when re-encoded to H265.
+#   --no-bpp-check     Encode every file regardless of bits-per-pixel
 #   --no-recursive     Only scan top-level directory (default: recursive)
+#   --log              Write ffmpeg output to a per-file log (default: off)
 #   --dry-run          Show what would be encoded, do not encode
 #   --keep-original    Keep the original file after encoding (default: kept)
 #
@@ -29,6 +33,7 @@ require 'optparse'
 require 'open3'
 require 'fileutils'
 require 'time'
+require 'json'
 
 # =============================================================================
 # COLOURS
@@ -76,8 +81,42 @@ def elapsed_str(seconds)
   h > 0 ? "#{h}h #{m}m #{s}s" : m > 0 ? "#{m}m #{s}s" : "#{s}s"
 end
 
+# Bits-per-pixel of the first video stream: bitrate / (width * height * fps).
+# Uses the container bitrate (or size/duration as a fallback), so audio is
+# included — good enough for a rough "is re-encoding worth it" triage.
+# Returns nil if the file can't be probed.
+def probe_bpp(path)
+  out, _err, status = Open3.capture3(
+    'ffprobe', '-v', 'error',
+    '-select_streams', 'v:0',
+    '-show_entries', 'stream=width,height,avg_frame_rate',
+    '-show_entries', 'format=duration,bit_rate',
+    '-of', 'json', path
+  )
+  return nil unless status.success?
+
+  data   = JSON.parse(out)
+  stream = data['streams']&.first or return nil
+  width  = stream['width'].to_i
+  height = stream['height'].to_i
+  num, den = stream['avg_frame_rate'].to_s.split('/').map(&:to_f)
+  fps = den && den > 0 ? num / den : 0.0
+  return nil if width <= 0 || height <= 0 || fps <= 0
+
+  bitrate = data.dig('format', 'bit_rate').to_f
+  if bitrate <= 0
+    duration = data.dig('format', 'duration').to_f
+    bitrate  = duration > 0 ? File.size(path) * 8 / duration : 0.0
+  end
+  return nil if bitrate <= 0
+
+  bitrate / (width * height * fps)
+rescue JSON::ParserError, Errno::ENOENT
+  nil
+end
+
 def run_encode(cmd, log_file)
-  File.open(log_file, 'a') { |f| f.puts "\n[#{Time.now}] #{cmd.join(' ')}\n" }
+  File.open(log_file, 'a') { |f| f.puts "\n[#{Time.now}] #{cmd.join(' ')}\n" } if log_file
 
   Open3.popen2e(*cmd) do |_stdin, stdout_err, wait_thr|
     buf = +""
@@ -93,7 +132,7 @@ def run_encode(cmd, log_file)
       while (idx = buf.index(/[\r\n]/))
         line = buf.slice!(0, idx + 1).chomp
         next if line.empty?
-        File.open(log_file, 'a') { |f| f.puts line }
+        File.open(log_file, 'a') { |f| f.puts line } if log_file
         if line =~ /frame=|time=|size=|speed=/
           $stderr.print "\r     #{line[0..120]}"
           $stderr.flush
@@ -112,26 +151,36 @@ end
 # OPTIONS
 # =============================================================================
 
-options = { crf: 17, preset: 'slow', suffix: '_h265', recursive: true, dry_run: false }
+options = { crf: 18, preset: 'medium', suffix: '_h265', recursive: true, dry_run: false, min_bpp: 0.05 }
 
-OptionParser.new do |opts|
-  opts.banner = "Usage: ruby h265_convert.rb [--dir PATH] [options]"
-  opts.on('--dir PATH',        'Directory to scan (default: current directory)') { |v| options[:dir]     = v }
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: ruby h265_convert.rb --dir PATH [options]"
+  opts.on('--dir PATH',        'Directory to scan (required)')                   { |v| options[:dir]     = v }
   opts.on('--crf N',   Integer, 'CRF quality value (default: 17)')               { |v| options[:crf]     = v }
-  opts.on('--preset P',        'x265 preset (default: slow)')                    { |v| options[:preset]  = v }
+  opts.on('--preset P',        'x265 preset (default: medium)')                    { |v| options[:preset]  = v }
   opts.on('--suffix S',        'Output filename suffix (default: _h265)')        { |v| options[:suffix]  = v }
+  opts.on('--min-bpp N', Float, 'Skip files below this bits-per-pixel (default: 0.05)') { |v| options[:min_bpp] = v }
+  opts.on('--no-bpp-check',    'Encode regardless of bits-per-pixel')            { options[:min_bpp]     = nil }
   opts.on('--no-recursive',    'Only scan top-level directory')                  { options[:recursive]   = false }
+  opts.on('--log',             'Write ffmpeg output to a per-file log')          { options[:log]         = true }
   opts.on('--dry-run',         'Show what would be encoded, do not encode')      { options[:dry_run]     = true }
   opts.on('--help', 'Show help') { puts opts; exit }
-end.parse!
+end
+parser.parse!
 
-scan_dir = File.expand_path(options[:dir] || Dir.pwd)
+if options[:dir].nil?
+  puts parser
+  exit 1
+end
+
+scan_dir = File.expand_path(options[:dir])
 log_error("Directory not found: #{scan_dir}") unless Dir.exist?(scan_dir)
 
 suffix  = options[:suffix]
 crf     = options[:crf]
 preset  = options[:preset]
 dry_run = options[:dry_run]
+min_bpp = options[:min_bpp]
 
 # =============================================================================
 # DISCOVER FILES
@@ -159,6 +208,7 @@ puts "  #{c('Files found:', C::DIM)} #{input_files.length}"
 puts "  #{c('CRF:', C::DIM)}        #{crf}"
 puts "  #{c('Preset:', C::DIM)}     #{preset}"
 puts "  #{c('Recursive:', C::DIM)}  #{options[:recursive]}"
+puts "  #{c('Min bpp:', C::DIM)}    #{min_bpp ? format('%.3f', min_bpp) : 'disabled'}"
 puts c('=' * 60, C::BOLD)
 
 if input_files.empty?
@@ -176,7 +226,16 @@ if dry_run
     dir    = File.dirname(input)
     base   = File.basename(input, File.extname(input))
     output = File.join(dir, "#{base}#{suffix}.mkv")
-    status = File.exist?(output) ? c("SKIP (exists)", C::DIM) : c("ENCODE", C::CYAN)
+    status =
+      if File.exist?(output)
+        c("SKIP (exists)", C::DIM)
+      elsif min_bpp && (bpp = probe_bpp(input)) && bpp < min_bpp
+        c(format("SKIP (bpp %.3f < %.3f)", bpp, min_bpp), C::DIM)
+      elsif min_bpp && bpp
+        c(format("ENCODE (bpp %.3f)", bpp), C::CYAN)
+      else
+        c("ENCODE", C::CYAN)
+      end
     puts "  #{status}  #{input.sub(scan_dir + '/', '')}"
   end
   puts
@@ -198,8 +257,11 @@ input_files.each_with_index do |input, idx|
   base   = File.basename(input, File.extname(input))
   output = File.join(dir, "#{base}#{suffix}.mkv")
 
-  timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
-  log_file  = File.join(dir, "#{base}_h265_#{timestamp}.log")
+  log_file =
+    if options[:log]
+      timestamp = Time.now.strftime('%Y%m%d_%H%M%S')
+      File.join(dir, "#{base}_h265_#{timestamp}.log")
+    end
 
   log_step(idx + 1, total, File.basename(input))
 
@@ -209,6 +271,20 @@ input_files.each_with_index do |input, idx|
     next
   end
 
+  if min_bpp
+    bpp = probe_bpp(input)
+    if bpp.nil?
+      log_warn("Could not determine bits-per-pixel — encoding anyway")
+    elsif bpp < min_bpp
+      log_skip(format("Bits-per-pixel %.3f is below %.3f — unlikely to shrink 10%%+, skipping", bpp, min_bpp))
+      skipped += 1
+      next
+    else
+      log_dim(format("Bits-per-pixel: %.3f (threshold %.3f)", bpp, min_bpp))
+    end
+  end
+
+  log_dim("Input:  #{input}")
   log_dim("Output: #{output}")
 
   cmd = %W[
@@ -234,7 +310,7 @@ input_files.each_with_index do |input, idx|
     log_ok("Done in #{elapsed_str(Time.now - file_start)} — #{human_size(input_size)} → #{human_size(output_size)} (#{reduction}% reduction)")
     done += 1
   else
-    log_warn("Failed — check #{log_file}")
+    log_warn(log_file ? "Failed — check #{log_file}" : "Failed — re-run with --log to capture ffmpeg output")
     # Remove partial output if it exists
     FileUtils.rm_f(output)
     failed += 1

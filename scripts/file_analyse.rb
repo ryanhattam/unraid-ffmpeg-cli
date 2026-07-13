@@ -3,6 +3,7 @@
 # analyse_local.rb — Analyse media file and generate YAML config locally
 # =============================================================================
 # Runs ffprobe and mediainfo on a source MKV, then generates a YAML config
+# directly without needing to call Claude.
 #
 # Usage:
 #   ruby analyse_local.rb --file "Movie.mkv"
