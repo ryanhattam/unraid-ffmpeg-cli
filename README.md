@@ -24,7 +24,7 @@ with zero filesystem overhead on the share data.
 
 ## Credentials
 
-- **Username:** `ffmpeg`
+- **Username:** `media`
 - **Default password:** `changeme`
 
 Change the password before deploying — see the SSH_PASSWORD environment variable below.
@@ -51,7 +51,7 @@ No plugins needed. From the Unraid terminal (or any SSH session into Unraid):
      --name ffmpeg-ssh \
      --restart unless-stopped \
      -p 2244:22 \
-     -e SSH_PASSWORD=yourpassword \
+     -e SSH_PASSWORD=changeme \
      -v /mnt/user/media:/mnt/media \
      ffmpeg-ssh
    ```
@@ -68,7 +68,7 @@ No plugins needed. From the Unraid terminal (or any SSH session into Unraid):
      --name ffmpeg-ssh \
      --restart unless-stopped \
      -p 2244:22 \
-     -e SSH_PASSWORD=yourpassword \
+     -e SSH_PASSWORD=changeme \
      -v /mnt/user/media:/mnt/media \
      ffmpeg-ssh
    ```
@@ -77,21 +77,36 @@ The `--restart unless-stopped` flag ensures the container comes back up after an
 
 ### Option B — Local user template (Unraid Docker UI)
 
-The included `unraid-template.xml` can be used as a local template in Unraid's
-native Docker UI:
+The included `unraid-template.xml` references the image by its local build tag
+(`ffmpeg-ssh`), so you still need to build it first — the template just saves
+you from filling in ports/paths/variables by hand in the UI.
 
-1. Download the template directly on your Unraid server (from the Unraid terminal):
+1. Build the image on your Unraid server (from the Unraid terminal), same as
+   Option A step 1:
+
+   ```bash
+   cd /mnt/user/appdata
+   git clone https://github.com/ryanhattam/unraid-ffmpeg-cli
+   cd unraid-ffmpeg-cli
+   docker build -t ffmpeg-ssh .
+   ```
+
+2. Download the template:
 
    ```bash
    curl -fsSL https://raw.githubusercontent.com/ryanhattam/unraid-ffmpeg-cli/main/unraid-template.xml \
      -o /boot/config/plugins/dockerMan/templates-user/ffmpeg-ssh.xml
    ```
 
-2. In Unraid → **Docker** tab → click **Add Container**
-3. At the top of the form, click the **Template** dropdown — `ffmpeg-ssh` will
+3. In Unraid → **Docker** tab → click **Add Container**
+4. At the top of the form, click the **Template** dropdown — `ffmpeg-ssh` will
    appear under **User Templates**
-4. Select it, fill in your share paths and set `SSH_PASSWORD`
-5. Click **Create**
+5. Select it, fill in your share paths and set `SSH_PASSWORD`
+6. Click **Create**
+
+To update later, rebuild the image locally (`docker build -t ffmpeg-ssh .`
+after `git pull`) and use Unraid's **Force Update** button on the container —
+since the image is local-only, Unraid won't try to pull from a registry.
 
 ### Option C — Manual Add Container (no template file)
 
@@ -119,7 +134,7 @@ If you prefer to configure everything by hand:
 ## Connecting via SSH
 
 ```bash
-ssh ffmpeg@your-unraid-ip -p 2244
+ssh media@your-unraid-ip -p 2244
 # enter the password you set in SSH_PASSWORD
 ```
 
@@ -140,7 +155,7 @@ docker run -d \
 Then connect without a password:
 
 ```bash
-ssh -i ~/.ssh/id_ed25519 ffmpeg@your-unraid-ip -p 2244
+ssh -i ~/.ssh/id_ed25519 media@your-unraid-ip -p 2244
 ```
 
 ---
@@ -185,7 +200,7 @@ docker run -d \
   --name ffmpeg-ssh \
   --restart unless-stopped \
   -p 2244:22 \
-  -e SSH_PASSWORD=yourpassword \
+  -e SSH_PASSWORD=changeme \
   --device /dev/dri:/dev/dri \
   -v /mnt/user/media:/mnt/media \
   ffmpeg-ssh
@@ -198,7 +213,7 @@ docker run -d \
   --name ffmpeg-ssh \
   --restart unless-stopped \
   -p 2244:22 \
-  -e SSH_PASSWORD=yourpassword \
+  -e SSH_PASSWORD=changeme \
   -e NVIDIA_VISIBLE_DEVICES=all \
   -e NVIDIA_DRIVER_CAPABILITIES=compute,video,utility \
   --runtime nvidia \
@@ -214,5 +229,5 @@ docker run -d \
 - Key-based auth is preferred; once set up you can disable password auth by
   bind-mounting a custom `sshd_config` with `PasswordAuthentication no`
 - `PermitRootLogin no` is enforced in the image
-- The `ffmpeg` user is unprivileged — sshd forks sessions as root internally
-  (required by SSH), but your interactive shell runs as the `ffmpeg` user
+- The `media` user is unprivileged — sshd forks sessions as root internally
+  (required by SSH), but your interactive shell runs as the `media` user

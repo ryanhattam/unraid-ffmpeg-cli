@@ -44,8 +44,8 @@ RUN DOVI_VERSION=$(curl -fsSL https://api.github.com/repos/quietvoid/dovi_tool/r
 RUN mkdir -p /var/run/sshd
 
 # Create a dedicated user for SSH access
-RUN useradd -m -s /bin/bash ffmpeg && \
-    echo "ffmpeg:changeme" | chpasswd
+RUN useradd -m -s /bin/bash media && \
+    echo "media:changeme" | chpasswd
 
 # SSH hardening - disable root login, allow only our user
 RUN sed -i \
@@ -53,7 +53,7 @@ RUN sed -i \
     -e 's/#PasswordAuthentication yes/PasswordAuthentication yes/' \
     -e 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' \
     /etc/ssh/sshd_config && \
-    echo "AllowUsers ffmpeg" >> /etc/ssh/sshd_config && \
+    echo "AllowUsers media" >> /etc/ssh/sshd_config && \
     echo "X11Forwarding no" >> /etc/ssh/sshd_config && \
     echo "PrintMotd no" >> /etc/ssh/sshd_config
 
@@ -65,9 +65,9 @@ RUN cd /scripts && bundle install
 COPY scripts/ /scripts/
 RUN chmod +x /scripts/*.rb
 
-# Create mount point directories (owned by ffmpeg user for direct access)
+# Create mount point directories (owned by media user for direct access)
 RUN mkdir -p /mnt/media && \
-    chown ffmpeg:ffmpeg /mnt/media
+    chown media:media /mnt/media
 
 # Generate host keys at build time (stable across restarts)
 RUN ssh-keygen -A
