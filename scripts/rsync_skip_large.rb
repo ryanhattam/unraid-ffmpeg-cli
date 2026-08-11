@@ -15,12 +15,16 @@
 # Options:
 #   --threshold SIZE   Size threshold, e.g. 50G, 10G, 500M (default: 50G)
 #   --dry-run          Pass -n to rsync (shows what would transfer, no changes)
-#   --verbose          Pass -v to rsync (per-file names) and print more detail while scanning
+#   --verbose          Pass an extra -v to rsync (-vv) for more per-file detail
 #
-# rsync always runs with an overall progress indicator (--info=progress2)
-# and a final transfer summary (--stats). On failure, the exit code is
-# looked up against rsync's documented meanings so errors are explained,
-# not just printed as a bare number.
+# rsync always runs with -rv --info=progress2 --stats --no-compress
+# --size-only --whole-file --inplace. Deliberately NOT -a: this doesn't try
+# to preserve timestamps, permissions, or ownership, since the destination
+# (e.g. a share on another box, an rclone remote) often won't grant the
+# `media` user permission to set those. --size-only skips re-transferring a
+# file based on its size alone, since timestamps aren't preserved to compare
+# against. On failure, the exit code is looked up against rsync's documented
+# meanings so errors are explained, not just printed as a bare number.
 #
 # Anything after a literal `--` is passed straight through to rsync
 # (e.g. `--delete`, `--progress`, `--exclude=.DS_Store`).
@@ -41,7 +45,7 @@ def usage!
       DEST               Destination directory to copy to
       --threshold SIZE   e.g. 50G, 10G, 500M (default: 50G)
       --dry-run          Pass -n to rsync (no changes made)
-      --verbose          Pass -v to rsync, print scan detail
+      --verbose          Pass an extra -v to rsync (-vv) for more detail
 
     Anything after a literal `--` is passed straight to rsync.
   USAGE
@@ -162,7 +166,8 @@ exclude_args = []
 excluded_dirs.each_key { |rel_dir| exclude_args << "--exclude=/#{rel_dir}/" }
 excluded_root_files.each { |name, _| exclude_args << "--exclude=/#{name}" }
 
-rsync_cmd = ['rsync', '-a', '-h', '--info=progress2', '--stats']
+rsync_cmd = ['rsync', '-r', '-v', '-h', '--info=progress2', '--stats',
+             '--no-compress', '--size-only', '--whole-file', '--inplace']
 rsync_cmd << '-v' if verbose
 rsync_cmd << '-n' if dry_run
 rsync_cmd.concat(exclude_args)
