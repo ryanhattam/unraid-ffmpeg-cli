@@ -32,5 +32,6 @@
   <Config Name="Media Share" Target="/mnt/media" Default="/mnt/user/media" Mode="rw" Description="Path to your Unraid media share" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/media</Config>
   <Config Name="Output Share" Target="/mnt/output" Default="/mnt/user/output" Mode="rw" Description="Path to write encoded output" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/output</Config>
   <Config Name="Data Share" Target="/mnt/data" Default="/mnt/user/data" Mode="rw" Description="Additional share mount" Type="Path" Display="always" Required="false" Mask="false">/mnt/user/data</Config>
+  <Config Name="Remotes Share" Target="/mnt/remotes" Default="/mnt/remotes" Mode="rw" Description="Path to Unraid remote mounts (e.g. rclone/network shares)" Type="Path" Display="always" Required="false" Mask="false">/mnt/remotes</Config>
 
 </Container>
