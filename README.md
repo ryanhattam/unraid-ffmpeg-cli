@@ -53,9 +53,15 @@ No plugins needed. From the Unraid terminal (or any SSH session into Unraid):
      -p 2244:22 \
      -e SSH_PASSWORD=changeme \
      -v /mnt/user/media:/mnt/media \
+     -v /mnt/user/output:/mnt/output \
+     -v /mnt/user/data:/mnt/data \
+     -v /mnt/remotes:/mnt/remotes \
      ffmpeg-ssh
    ```
-   Adjust the `-v` paths to match your actual share names.
+   Adjust the `-v` paths to match your actual share names. Only `/mnt/media`
+   is essential — `/mnt/output`, `/mnt/data`, and `/mnt/remotes` are optional
+   extra mounts for writing encoded output, misc data, and rclone/network
+   shares respectively.
 
 3. To update later, pull and rebuild:
 
@@ -70,6 +76,9 @@ No plugins needed. From the Unraid terminal (or any SSH session into Unraid):
      -p 2244:22 \
      -e SSH_PASSWORD=changeme \
      -v /mnt/user/media:/mnt/media \
+     -v /mnt/user/output:/mnt/output \
+     -v /mnt/user/data:/mnt/data \
+     -v /mnt/remotes:/mnt/remotes \
      ffmpeg-ssh
    ```
 
@@ -116,11 +125,15 @@ If you prefer to configure everything by hand:
 2. Enable **Advanced View** (toggle top-right)
 3. Set **Repository** to your built image name
 4. Add a **Port** mapping: Host port `2244` → Container port `22` (TCP)
-5. Add a **Path** mapping for your share:
+5. Add **Path** mappings for your shares (only `/mnt/media` is required —
+   the rest are optional):
 
-   | Unraid Share Path   | Container Path | Mode |
-   |---------------------|----------------|------|
-   | `/mnt/user/media`   | `/mnt/media`   | RW   |
+   | Unraid Share Path  | Container Path | Mode |
+   |--------------------|----------------|------|
+   | `/mnt/user/media`  | `/mnt/media`   | RW   |
+   | `/mnt/user/output` | `/mnt/output`  | RW   |
+   | `/mnt/user/data`   | `/mnt/data`    | RW   |
+   | `/mnt/remotes`     | `/mnt/remotes` | RW   |
 
 6. Add a **Variable**: Name `SSH_PASSWORD`, Value: your chosen password
 7. Click **Create**
@@ -149,6 +162,9 @@ docker run -d \
   -p 2244:22 \
   -e SSH_AUTHORIZED_KEYS="$(cat ~/.ssh/id_ed25519.pub)" \
   -v /mnt/user/media:/mnt/media \
+  -v /mnt/user/output:/mnt/output \
+  -v /mnt/user/data:/mnt/data \
+  -v /mnt/remotes:/mnt/remotes \
   ffmpeg-ssh
 ```
 
@@ -170,20 +186,20 @@ ffprobe /mnt/media/movie.mkv
 mediainfo /mnt/media/movie.mkv
 
 # Transcode to H.265
-ffmpeg -i /mnt/media/movie.mkv -c:v libx265 -crf 22 -c:a copy /mnt/media/movie_x265.mkv
+ffmpeg -i /mnt/media/movie.mkv -c:v libx265 -crf 22 -c:a copy /mnt/output/movie_x265.mkv
 
 # Batch transcode a folder
 for f in /mnt/media/*.mkv; do
-  out="/mnt/media/$(basename "${f%.mkv}")_x265.mkv"
+  out="/mnt/output/$(basename "${f%.mkv}")_x265.mkv"
   ffmpeg -i "$f" -c:v libx265 -crf 22 -c:a copy "$out"
 done
 
 # Extract Dolby Vision RPU
 ffmpeg -i /mnt/media/movie.mkv -c:v copy -bsf:v hevc_mp4toannexb -f hevc - | \
-  dovi_tool extract-rpu - -o /mnt/media/RPU.bin
+  dovi_tool extract-rpu - -o /mnt/output/RPU.bin
 
 # Remux streams with mkvmerge
-mkvmerge -o /mnt/media/remuxed.mkv /mnt/media/movie.mkv
+mkvmerge -o /mnt/output/remuxed.mkv /mnt/media/movie.mkv
 
 # Check available hardware acceleration
 ffmpeg -hwaccels
@@ -203,6 +219,9 @@ docker run -d \
   -e SSH_PASSWORD=changeme \
   --device /dev/dri:/dev/dri \
   -v /mnt/user/media:/mnt/media \
+  -v /mnt/user/output:/mnt/output \
+  -v /mnt/user/data:/mnt/data \
+  -v /mnt/remotes:/mnt/remotes \
   ffmpeg-ssh
 ```
 
@@ -218,6 +237,9 @@ docker run -d \
   -e NVIDIA_DRIVER_CAPABILITIES=compute,video,utility \
   --runtime nvidia \
   -v /mnt/user/media:/mnt/media \
+  -v /mnt/user/output:/mnt/output \
+  -v /mnt/user/data:/mnt/data \
+  -v /mnt/remotes:/mnt/remotes \
   ffmpeg-ssh
 ```
 

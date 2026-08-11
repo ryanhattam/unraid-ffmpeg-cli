@@ -66,8 +66,8 @@ COPY scripts/ /scripts/
 RUN chmod +x /scripts/*.rb
 
 # Create mount point directories (owned by media user for direct access)
-RUN mkdir -p /mnt/media && \
-    chown media:media /mnt/media
+RUN mkdir -p /mnt/media /mnt/output /mnt/data /mnt/remotes && \
+    chown media:media /mnt/media /mnt/output /mnt/data /mnt/remotes
 
 # Generate host keys at build time (stable across restarts)
 RUN ssh-keygen -A
