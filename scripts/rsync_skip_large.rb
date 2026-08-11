@@ -15,7 +15,12 @@
 # Options:
 #   --threshold SIZE   Size threshold, e.g. 50G, 10G, 500M (default: 50G)
 #   --dry-run          Pass -n to rsync (shows what would transfer, no changes)
-#   --verbose          Pass -v to rsync and print more detail while scanning
+#   --verbose          Pass -v to rsync (per-file names) and print more detail while scanning
+#
+# rsync always runs with an overall progress indicator (--info=progress2)
+# and a final transfer summary (--stats). On failure, the exit code is
+# looked up against rsync's documented meanings so errors are explained,
+# not just printed as a bare number.
 #
 # Anything after a literal `--` is passed straight through to rsync
 # (e.g. `--delete`, `--progress`, `--exclude=.DS_Store`).
@@ -157,7 +162,7 @@ exclude_args = []
 excluded_dirs.each_key { |rel_dir| exclude_args << "--exclude=/#{rel_dir}/" }
 excluded_root_files.each { |name, _| exclude_args << "--exclude=/#{name}" }
 
-rsync_cmd = ['rsync', '-a']
+rsync_cmd = ['rsync', '-a', '-h', '--info=progress2', '--stats']
 rsync_cmd << '-v' if verbose
 rsync_cmd << '-n' if dry_run
 rsync_cmd.concat(exclude_args)
@@ -175,9 +180,34 @@ puts "Running:"
 puts "  #{rsync_cmd.map { |a| Shellwords.escape(a) }.join(' ')}"
 puts
 
+RSYNC_EXIT_CODES = {
+  1  => 'Syntax or usage error',
+  2  => 'Protocol incompatibility',
+  3  => 'Errors selecting input/output files, dirs',
+  4  => 'Requested action not supported',
+  5  => 'Error starting client-server protocol',
+  6  => 'Daemon unable to append to log-file',
+  10 => 'Error in socket I/O',
+  11 => 'Error in file I/O',
+  12 => 'Error in rsync protocol data stream',
+  13 => 'Errors with program diagnostics',
+  14 => 'Error in IPC code',
+  20 => 'Received SIGUSR1 or SIGINT',
+  21 => 'Some error returned by waitpid()',
+  22 => 'Error allocating core memory buffers',
+  23 => 'Partial transfer due to error (see rsync output above for which files)',
+  24 => 'Partial transfer due to vanished source files',
+  25 => 'The --max-delete limit stopped deletions',
+  30 => 'Timeout in data send/receive',
+  35 => 'Timeout waiting for daemon connection',
+}.freeze
+
 success = system(*rsync_cmd)
 
 unless success
-  warn "rsync exited with a non-zero status."
-  exit($?.exitstatus || 1)
+  code = $?.exitstatus
+  reason = RSYNC_EXIT_CODES[code]
+  puts
+  warn "rsync failed with exit code #{code}#{reason ? " (#{reason})" : ''}."
+  exit(code || 1)
 end
