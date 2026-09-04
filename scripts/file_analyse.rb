@@ -48,7 +48,7 @@ def log_section(t)  = puts("\n#{c("── #{t}", C::CYAN, C::BOLD)}")
 # OPTIONS
 # =============================================================================
 
-options = { crf: 17, preset: 'fast' }
+options = { crf: 15, preset: 'medium' }
 
 OptionParser.new do |opts|
   opts.banner = "Usage: ruby analyse_local.rb --file INPUT.mkv [options]"
