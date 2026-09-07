@@ -28,6 +28,8 @@
 #   --crf N              Override CRF from config (lower = higher quality; 16–20 for high VMAF)
 #   --dry-run            Show what would run, do not encode
 #   --keep-temp          Keep intermediate files after completion
+#   --yes, -y            Auto-confirm all prompts (overwrite existing output,
+#                         proceed with encode) — for unattended/batch runs
 # =============================================================================
 
 require 'optparse'
@@ -68,7 +70,7 @@ end
 # OPTIONS
 # =============================================================================
 
-options = { dry_run: false, keep_temp: false }
+options = { dry_run: false, keep_temp: false, yes: false }
 
 OptionParser.new do |opts|
   opts.banner = "Usage: ruby encode.rb --file INPUT.mkv --config CONFIG.yaml [options]"
@@ -79,6 +81,7 @@ OptionParser.new do |opts|
   opts.on('--crf N',            'Override CRF from config (lower = better quality)') { |v| options[:crf] = v }
   opts.on('--dry-run',          'Show commands, do not encode')              { options[:dry_run]         = true }
   opts.on('--keep-temp',        'Keep intermediate files')                   { options[:keep_temp]       = true }
+  opts.on('-y', '--yes',        'Auto-confirm all prompts (for unattended/batch runs)') { options[:yes] = true }
   opts.on('--help', 'Show help') { puts opts; exit }
 end.parse!
 
@@ -175,7 +178,11 @@ def run_cmd(cmd, label, log_file, dry_run: false)
   end
 end
 
-def confirm(prompt)
+def confirm(prompt, auto: false)
+  if auto
+    log_dim("#{prompt} [y/N] auto-confirmed (--yes)")
+    return true
+  end
   print "\n#{c("  ? ", C::YELLOW, C::BOLD)}#{c(prompt, C::WHITE)} #{c("[y/N] ", C::DIM)}"
   r = $stdin.gets.chomp.downcase
   r == 'y' || r == 'yes'
@@ -237,7 +244,7 @@ def build_audio_cmd(cfg, input, temp_audio)
   sub_streams  = cfg['subtitle_streams'] || []
   sub_maps     = has_subs ? sub_streams.flat_map { |s| ['-map', s] } : []
 
-  base = %W[ffmpeg -analyzeduration 100M -probesize 100M -y -i #{input}]
+  base = %W[ffmpeg -analyzeduration 100M -probesize 100M -y -v warning -stats -i #{input}]
 
   case action
   when 'dts_core', 'copy'
@@ -336,14 +343,14 @@ end
 display_summary(cfg, INPUT, OUTPUT_FILE)
 
 if File.exist?(OUTPUT_FILE) && !options[:dry_run]
-  unless confirm("Output file already exists. Overwrite?")
+  unless confirm("Output file already exists. Overwrite?", auto: options[:yes])
     log_info("Aborted.")
     exit 0
   end
 end
 
 unless options[:dry_run]
-  unless confirm("Proceed with encode?")
+  unless confirm("Proceed with encode?", auto: options[:yes])
     log_info("Aborted.")
     exit 0
   end

@@ -8,16 +8,18 @@
 # file_encode.rb once per pair, forwarding any extra arguments to every
 # invocation. Each run's own duplicate-output check (confirm prompt in
 # file_encode.rb) is preserved as-is — this script does not skip or
-# force-overwrite existing outputs itself.
+# force-overwrite existing outputs itself. For an unattended batch, forward
+# file_encode.rb's own --yes flag to auto-confirm those prompts instead of
+# piping input into them.
 #
 # Usage:
 #   ruby file_batch_encode.rb --dir /media/movies
 #   ruby file_batch_encode.rb --dir /media/movies -- --dry-run
-#   ruby file_batch_encode.rb --dir /media/movies -- --crf 18 --keep-dv-profile
-#   ruby file_batch_encode.rb --dir /media/movies --output-dir /media/out -- --keep-temp
+#   ruby file_batch_encode.rb --dir /media/movies -- --crf 18 --yes
+#   ruby file_batch_encode.rb --dir /media/movies --output-dir /media/out -- --keep-temp --yes
 #
 # Everything after `--` is forwarded verbatim to file_encode.rb for every
-# file (e.g. --crf, --keep-dv-profile, --output-dir, --dry-run, --keep-temp).
+# file (e.g. --crf, --output-dir, --dry-run, --keep-temp, --yes).
 #
 # Options:
 #   --dir PATH          Directory containing source video files (required)
