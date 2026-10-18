@@ -757,5 +757,5 @@ puts c('  Next step:', C::BOLD, C::WHITE)
 puts c('=' * 60, C::BOLD)
 puts
 puts "  Run the encoder:"
-puts "     #{c("ruby encode.rb --file \"#{File.basename(input)}\" --config \"#{output_path}\"", C::GREEN)}"
+puts "     #{c("ruby file_encode.rb --file \"#{input}\" --config \"#{output_path}\"", C::GREEN)}"
 puts
